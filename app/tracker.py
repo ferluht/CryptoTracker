@@ -27,7 +27,7 @@ def main():
 
     #print active exchanges and create indexes in kibana based on products listed in each market
     for exchange in exchanges:
-        logging.info(exchange.exchange_id + ': activated and indexed.')
+        logging.info(exchange.exchange.id + ': activated and indexed.')
         for product, kibana_index in exchange.products.items():
             utils.create_index(es, kibana_index['ticker'])
             utils.create_index(es, kibana_index['orderbook'])
