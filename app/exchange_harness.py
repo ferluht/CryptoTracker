@@ -18,7 +18,7 @@ class ExchangeHarness(object):
     }
 
     def __init__(self, exchange_id):
-        self.exchange = getattr(ccxt, exchange_id)()
+        self.exchange = getattr(ccxt, exchange_id)({ 'timeout': 1000 })
 
         loop = asyncio.get_event_loop()
         markets = loop.run_until_complete(self.exchange.load_markets())
@@ -105,7 +105,7 @@ class ExchangeHarness(object):
                 es.create(index=self.products[ticker[0]]['ticker'], id=utils.generate_nonce(),
                           doc_type='ticker', body=ticker[1])
             except Exception as e:
-                logging.warning(str(e))
+                logging.warning('{}:{}'.format(str(e), ticker))
                 raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
 
         for orderbook in orderbooks:
@@ -113,5 +113,5 @@ class ExchangeHarness(object):
                 es.create(index=self.products[orderbook[0]]['orderbook'], id=utils.generate_nonce(),
                           doc_type='orderbook', body=orderbook[1])
             except Exception as e:
-                logging.warning(str(e))
+                logging.warning('{}:{}'.format(str(e), orderbook))
                 raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)

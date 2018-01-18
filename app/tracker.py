@@ -43,7 +43,7 @@ def main():
             logging.info("All exchanges record cycle")
         except Exception as e:
             logging.warning(e)
-            sleep(settings.RETRY_RATE)
+        #    sleep(settings.RETRY_RATE)
         # with ThreadPoolExecutor(max_workers=20) as executor:
         #     try:
         #         sleep(1)
