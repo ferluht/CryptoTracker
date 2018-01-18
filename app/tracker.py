@@ -40,6 +40,7 @@ def main():
         try:
             exs = asyncio.gather(*[ex.record_data(es) for ex in exchanges])
             loop.run_until_complete(exs)
+            logging.info("All exchanges record cycle")
         except Exception as e:
             logging.warning(e)
             sleep(settings.RETRY_RATE)
