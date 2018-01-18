@@ -21,8 +21,9 @@ class ExchangeHarness(object):
         self.exchange = getattr(ccxt, exchange_id)()
 
         loop = asyncio.get_event_loop()
-
         markets = loop.run_until_complete(self.exchange.load_markets())
+        loop.close()
+
         self.symbols = {}
 
         logging.info('Loaded markets for {}'.format(self.exchange.id))
@@ -75,33 +76,36 @@ class ExchangeHarness(object):
         #     clean_data['last'] =
         return clean_data
 
-    async def get_ticker(self,symbol):
+    async def get_ticker(self, symbol):
         ticker = await self.exchange.fetch_ticker(symbol)
         clean = self.clean_ticker(ticker)
-        return clean
+        return symbol, clean
 
-    async def get_orderbook(self,symbol):
+    async def get_orderbook(self, symbol):
         orderbook = await self.exchange.fetch_order_book(symbol, {'depth': 10})
         now = datetime.utcnow()
         orderbook['tracker_time'] = now
-        return orderbook
+        return symbol, orderbook
 
-    def record_data_wrapper(self, es):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.record_data(es=es))
-
-    async def record_data(self, es):
+    def record_data(self, es):
         """Record current tick"""
-        for product in self.products.keys():
-            es_body = await self.get_ticker(product)
+        tickers = asyncio.gather(*[self.get_ticker(product) for product in self.products])
+        orderbooks = asyncio.gather(*[self.get_orderbook(product) for product in self.products])
+
+        all_at_once = asyncio.gather(tickers, orderbooks)
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(all_at_once)
+        loop.close()
+
+        for ticker in tickers:
             try:
-                es.create(index=self.products[product]['ticker'], id=utils.generate_nonce(), doc_type='ticker', body=es_body)
+                es.create(index=self.products[ticker[0]]['ticker'], id=utils.generate_nonce(), doc_type='ticker', body=ticker[1])
             except:
                 raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
 
-            es_body = await self.get_orderbook(product)
+        for orderbook in orderbooks:
             try:
-                es.create(index=self.products[product]['orderbook'], id=utils.generate_nonce(), doc_type='orderbook', body=es_body)
+                es.create(index=self.products[orderbook[0]]['orderbook'], id=utils.generate_nonce(), doc_type='orderbook', body=orderbook[1])
             except:
                 raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
-
