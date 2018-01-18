@@ -20,8 +20,9 @@ class ExchangeHarness(object):
     def __init__(self, exchange_id):
         self.exchange = getattr(ccxt, exchange_id)()
 
-    async def get_markets(self):
-        markets = await self.exchange.load_markets()
+        loop = asyncio.get_event_loop()
+
+        markets = loop.run_until_complete(self.exchange.load_markets())
         self.symbols = {}
 
         logging.info('Loaded markets for {}'.format(self.exchange.id))
