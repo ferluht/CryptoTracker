@@ -37,6 +37,7 @@ def main():
     while True:
         with ThreadPoolExecutor(max_workers=50) as executor:
             try:
+                sleep(1)
                 executor.map(lambda ex: ex.record_data(es), exchanges)
                 logging.info("added another ticker record")
             except Exception as e:
