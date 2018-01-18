@@ -21,7 +21,7 @@ def main():
 
     logging.info('Application Started.')
     #supported_exchanges = [BitFinex_Market(), BitMex_Market(), BitTrex_Market(), GDAX_Market(), Gemini_Market(), Kraken_Market(), OKCoin_Market(), Poloniex_Market()]
-    tmp = ['bitstamp', 'gdax', 'kraken', 'gemini']
+    tmp = ['bittrex', 'bitfinex', 'kraken']
     exchanges = [ExchangeHarness(x) for x in tmp]
 
 
@@ -29,16 +29,17 @@ def main():
     for exchange in exchanges:
         logging.info(exchange.exchange_id + ': activated and indexed.')
         for product, kibana_index in exchange.products.items():
-            utils.create_index(es, kibana_index)
+            utils.create_index(es, kibana_index['ticker'])
+            utils.create_index(es, kibana_index['orderbook'])
 
-    logging.warn('Initiating Market Tracking.')
+    logging.warning('Initiating Market Tracking.')
 
     #Record Ticks
     while True:
         with ThreadPoolExecutor(max_workers=5) as executor:
             try:
                 sleep(settings.MARKET_REFRESH_RATE)
-                executor.map(lambda ex: ex.record_ticker(es), exchanges)
+                executor.map(lambda ex: ex.record_data(es), exchanges)
                 logging.info("added another ticker record")
             except Exception as e:
                 logging.warning(e)
