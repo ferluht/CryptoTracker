@@ -96,6 +96,8 @@ class ExchangeHarness(object):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(all_at_once)
 
+        logging.info('{}{}'.format(tickers, orderbooks))
+
         for ticker in tickers:
             try:
                 es.create(index=self.products[ticker[0]]['ticker'], id=utils.generate_nonce(), doc_type='ticker', body=ticker[1])

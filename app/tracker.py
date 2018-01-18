@@ -21,7 +21,7 @@ def main():
 
     logging.info('Application Started.')
     #supported_exchanges = [BitFinex_Market(), BitMex_Market(), BitTrex_Market(), GDAX_Market(), Gemini_Market(), Kraken_Market(), OKCoin_Market(), Poloniex_Market()]
-    tmp = ['bittrex', 'bitfinex', 'kraken']
+    tmp = ['bittrex', 'kraken']
     exchanges = [ExchangeHarness(x) for x in tmp]
 
     #print active exchanges and create indexes in kibana based on products listed in each market
