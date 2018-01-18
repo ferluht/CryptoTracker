@@ -11,7 +11,7 @@ import time
 import logging
 
 def generate_nonce():
-    return int(time.time()*10)
+    return int(time.time()*1000)
 
 def create_index(es,index):
         if (es.indices.exists(index)):
