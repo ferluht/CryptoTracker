@@ -20,10 +20,11 @@ class ExchangeHarness(object):
     def __init__(self, exchange_id):
         self.exchange = getattr(ccxt, exchange_id)()
 
-        markets = self.exchange.load_markets()
+    async def get_markets(self):
+        markets = await self.exchange.load_markets()
         self.symbols = {}
 
-        logging.info('Loaded markets for {}'.format(exchange_id))
+        logging.info('Loaded markets for {}'.format(self.exchange.id))
 
         for symbol in markets:
             done = False
@@ -38,20 +39,19 @@ class ExchangeHarness(object):
                 if done:
                     break
 
-        logging.info('Symbols for {}: {}'.format(exchange_id, self.symbols))
+        logging.info('Symbols for {}: {}'.format(self.exchange.id, self.symbols))
 
-        self.exchange_id = self.exchange.id.lower()
         self.products = {}
 
         for symbol in self.symbols:
             self.products[symbol] = {
                 'ticker': '{pairname}.{exchange}.ticker'.format(pairname=self.symbols[symbol],
-                                                                exchange=self.exchange_id),
+                                                                exchange=self.exchange.id),
                 'orderbook': '{pairname}.{exchange}.orderbook'.format(pairname=self.symbols[symbol],
-                                                                      exchange=self.exchange_id)
+                                                                      exchange=self.exchange.id)
             }
 
-        logging.info('Indices for {}: {}'.format(exchange_id, self.products))
+        logging.info('Indices for {}: {}'.format(self.exchange.id, self.products))
         # self.markets = self.exchange.load_markets()
 
     def clean_ticker(self,data):
@@ -61,7 +61,7 @@ class ExchangeHarness(object):
         clean_data["ask"] = float(data["ask"])
         clean_data["bid"] = float(data["bid"])
         clean_data["price"] = float(data["last"])
-        clean_data["exchange"] = self.exchange_id
+        clean_data["exchange"] = self.exchange.id
         clean_data["product"] = data['symbol']
         clean_data['info'] = data['info']
         clean_data["size"] = float(data['baseVolume'])
@@ -96,11 +96,11 @@ class ExchangeHarness(object):
             try:
                 es.create(index=self.products[product]['ticker'], id=utils.generate_nonce(), doc_type='ticker', body=es_body)
             except:
-                raise ValueError("Misformed Body for Elastic Search on " + self.exchange_id)
+                raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
 
             es_body = await self.get_orderbook(product)
             try:
                 es.create(index=self.products[product]['orderbook'], id=utils.generate_nonce(), doc_type='orderbook', body=es_body)
             except:
-                raise ValueError("Misformed Body for Elastic Search on " + self.exchange_id)
+                raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
 
