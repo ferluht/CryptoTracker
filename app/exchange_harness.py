@@ -103,11 +103,13 @@ class ExchangeHarness(object):
         for ticker in tickers:
             try:
                 es.create(index=self.products[ticker[0]]['ticker'], doc_type='ticker', body=ticker[1])
-            except:
+            except Exception as e:
+                logging.warning(str(e))
                 raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
 
         for orderbook in orderbooks:
             try:
                 es.create(index=self.products[orderbook[0]]['orderbook'], doc_type='orderbook', body=orderbook[1])
-            except:
+            except Exception as e:
+                logging.warning(str(e))
                 raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
