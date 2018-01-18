@@ -22,7 +22,6 @@ class ExchangeHarness(object):
 
         loop = asyncio.get_event_loop()
         markets = loop.run_until_complete(self.exchange.load_markets())
-        loop.close()
 
         self.symbols = {}
 
@@ -96,7 +95,6 @@ class ExchangeHarness(object):
 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(all_at_once)
-        loop.close()
 
         for ticker in tickers:
             try:
