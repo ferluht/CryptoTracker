@@ -6,7 +6,8 @@ import settings
 import logging
 import requests
 import utils
-import ccxt
+import ccxt.async as ccxt
+import asyncio
 from time import sleep
 
 class ExchangeHarness(object):
@@ -73,27 +74,31 @@ class ExchangeHarness(object):
         #     clean_data['last'] =
         return clean_data
 
-    def get_ticker(self,symbol):
-        ticker = self.exchange.fetch_ticker(symbol)
+    async def get_ticker(self,symbol):
+        ticker = await self.exchange.fetch_ticker(symbol)
         clean = self.clean_ticker(ticker)
         return clean
 
-    def get_orderbook(self,symbol):
-        orderbook = self.exchange.fetch_order_book(symbol, {'depth': 10})
+    async def get_orderbook(self,symbol):
+        orderbook = await self.exchange.fetch_order_book(symbol, {'depth': 10})
         now = datetime.utcnow()
         orderbook['tracker_time'] = now
         return orderbook
 
-    def record_data(self, es):
+    def record_data_wrapper(self, es):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.record_data(es=es))
+
+    async def record_data(self, es):
         """Record current tick"""
         for product in self.products.keys():
-            es_body=self.get_ticker(product)
+            es_body = await self.get_ticker(product)
             try:
                 es.create(index=self.products[product]['ticker'], id=utils.generate_nonce(), doc_type='ticker', body=es_body)
             except:
                 raise ValueError("Misformed Body for Elastic Search on " + self.exchange_id)
 
-            es_body = self.get_orderbook(product)
+            es_body = await self.get_orderbook(product)
             try:
                 es.create(index=self.products[product]['orderbook'], id=utils.generate_nonce(), doc_type='orderbook', body=es_body)
             except:
