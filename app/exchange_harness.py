@@ -86,17 +86,19 @@ class ExchangeHarness(object):
         orderbook['tracker_time'] = now
         return symbol, orderbook
 
-    def record_data(self, es):
+    # def record_data_wrapper(self, es):
+    #     loop = asyncio.get_event_loop()
+    #     loop.run_until_complete(self.record_data(es))
+    #     logging.info('HERE')
+
+    async def record_data(self, es):
         """Record current tick"""
-        tickers = asyncio.gather(*[self.get_ticker(product) for product in self.products])
-        orderbooks = asyncio.gather(*[self.get_orderbook(product) for product in self.products])
+        tickers = asyncio.gather(*[self.get_ticker(product) for product in self.products], return_exceptions=True)
+        orderbooks = asyncio.gather(*[self.get_orderbook(product) for product in self.products], return_exceptions=True)
 
-        all_at_once = asyncio.gather(tickers, orderbooks)
+        all_at_once = asyncio.gather(tickers, orderbooks, return_exceptions=True)
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(all_at_once)
-
-        logging.info('{}{}'.format(tickers, orderbooks))
+        tickers, orderbooks = await all_at_once
 
         for ticker in tickers:
             try:

@@ -4,6 +4,7 @@ from elasticsearch import Elasticsearch, helpers
 from exchange_harness import ExchangeHarness
 import logging
 # import schedule
+import asyncio
 import settings
 import utils
 import random
@@ -24,7 +25,7 @@ def main():
     tmp = ['bittrex', 'kraken']
     exchanges = [ExchangeHarness(x) for x in tmp]
 
-    #print active exchanges and create indexes in kibana based on products listed in each market
+    # print active exchanges and create indexes in kibana based on products listed in each market
     for exchange in exchanges:
         logging.info(exchange.exchange.id + ': activated and indexed.')
         for product, kibana_index in exchange.products.items():
@@ -33,17 +34,26 @@ def main():
 
     logging.warning('Initiating Market Tracking.')
 
+    loop = asyncio.get_event_loop()
     #Record Ticks
     while True:
-        with ThreadPoolExecutor(max_workers=50) as executor:
-            try:
-                sleep(1)
-                executor.map(lambda ex: ex.record_data(es), exchanges)
-                logging.info("added another ticker record")
-            except Exception as e:
-                logging.warning(e)
-                sleep(settings.RETRY_RATE)
-
+        try:
+            exs = asyncio.gather(*[ex.record_data(es) for ex in exchanges])
+            loop.run_until_complete(exs)
+        except Exception as e:
+            logging.warning(e)
+            sleep(settings.RETRY_RATE)
+        # with ThreadPoolExecutor(max_workers=20) as executor:
+        #     try:
+        #         sleep(1)
+        #         es = ''
+        #         executor.map(lambda ex: ex.record_data_wrapper(es), exchanges)
+        #         # exchanges[0].record_data_wrapper(es)
+        #         logging.info("added another ticker record")
+        #     except Exception as e:
+        #         logging.warning(e)
+        #         sleep(settings.RETRY_RATE)
+    loop.close()
 
 
 
