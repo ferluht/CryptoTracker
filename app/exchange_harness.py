@@ -80,6 +80,8 @@ class ExchangeHarness(object):
 
     def get_orderbook(self,symbol):
         orderbook = self.exchange.fetch_order_book(symbol, {'depth': 10})
+        now = datetime.utcnow()
+        orderbook['tracker_time'] = now
         return orderbook
 
     def record_data(self, es):

@@ -36,9 +36,8 @@ def main():
 
     #Record Ticks
     while True:
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=50) as executor:
             try:
-                sleep(settings.MARKET_REFRESH_RATE)
                 executor.map(lambda ex: ex.record_data(es), exchanges)
                 logging.info("added another ticker record")
             except Exception as e:
