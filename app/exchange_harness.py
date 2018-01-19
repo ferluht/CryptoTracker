@@ -18,7 +18,7 @@ class ExchangeHarness(object):
     }
 
     def __init__(self, exchange_id):
-        self.exchange = getattr(ccxt, exchange_id)({ 'timeout': 1000 })
+        self.exchange = getattr(ccxt, exchange_id)({ 'timeout': 10000 })
 
         loop = asyncio.get_event_loop()
         markets = loop.run_until_complete(self.exchange.load_markets())
@@ -53,6 +53,8 @@ class ExchangeHarness(object):
             }
 
         logging.info('Indices for {}: {}'.format(self.exchange.id, self.products))
+
+        self.time_between_requests = 0.05
         # self.markets = self.exchange.load_markets()
 
     def clean_ticker(self,data):
@@ -75,43 +77,59 @@ class ExchangeHarness(object):
         #     clean_data['last'] =
         return clean_data
 
-    async def get_ticker(self, symbol):
-        ticker = await self.exchange.fetch_ticker(symbol)
-        clean = self.clean_ticker(ticker)
-        return symbol, clean
+    async def wait_and_send(self, time_to_wait, queue, msg):
+        await asyncio.sleep(time_to_wait)
+        await queue.put(msg)
 
-    async def get_orderbook(self, symbol):
-        orderbook = await self.exchange.fetch_order_book(symbol, {'depth': 10})
+    async def get_ticker(self, symbol, es):
+        try:
+            logging.debug('Send {} ticker request to {}'.format(self.symbols[symbol], self.exchange.id))
+            ticker = await self.exchange.fetch_ticker(symbol)
+        except Exception as e:
+            logging.warning(str(e))
+            return
+        logging.debug('Got ticker {} from {}'.format(self.symbols[symbol], self.exchange.id))
+        clean = self.clean_ticker(ticker)
+        await self.on_ticker_received(clean, es)
+
+    async def get_orderbook(self, symbol, es):
+        try:
+            logging.debug('Send {} orderbook request to {}'.format(self.symbols[symbol], self.exchange.id))
+            orderbook = await self.exchange.fetch_order_book(symbol, {'depth': 10})
+        except Exception as e:
+            logging.warning(str(e))
+            return
+        logging.debug('Got orderbook {} from {}'.format(self.symbols[symbol], self.exchange.id))
         now = datetime.utcnow()
         orderbook['tracker_time'] = now
-        return symbol, orderbook
+        await self.on_orderbook_received(orderbook, es)
 
-    # def record_data_wrapper(self, es):
-    #     loop = asyncio.get_event_loop()
-    #     loop.run_until_complete(self.record_data(es))
-    #     logging.info('HERE')
+    async def on_ticker_received(self, ticker, es):
+        try:
+            logging.debug(ticker)
+            es.create(index=self.products[ticker[0]]['ticker'], id=utils.generate_nonce(),
+                      doc_type='ticker', body=ticker[1])
+        except Exception as e:
+            logging.warning('{}:{}'.format(str(e), ticker))
+            # raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
+
+    async def on_orderbook_received(self, orderbook, es):
+        try:
+            logging.debug(orderbook)
+            es.create(index=self.products[orderbook[0]]['orderbook'], id=utils.generate_nonce(),
+                      doc_type='orderbook', body=orderbook[1])
+        except Exception as e:
+            logging.warning('{}:{}'.format(str(e), orderbook))
+            # raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
+
 
     async def record_data(self, es):
         """Record current tick"""
-        tickers = asyncio.gather(*[self.get_ticker(product) for product in self.products], return_exceptions=True)
-        orderbooks = asyncio.gather(*[self.get_orderbook(product) for product in self.products], return_exceptions=True)
+        while True:
+            for product in self.products:
+                asyncio.ensure_future(self.get_ticker(product, es))
+                await asyncio.sleep(self.time_between_requests)
+                asyncio.ensure_future(self.get_orderbook(product, es))
+                await asyncio.sleep(self.time_between_requests)
 
-        all_at_once = asyncio.gather(tickers, orderbooks, return_exceptions=True)
-
-        tickers, orderbooks = await all_at_once
-
-        for ticker in tickers:
-            try:
-                es.create(index=self.products[ticker[0]]['ticker'], id=utils.generate_nonce(),
-                          doc_type='ticker', body=ticker[1])
-            except Exception as e:
-                logging.warning('{}:{}'.format(str(e), ticker))
-                raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
-
-        for orderbook in orderbooks:
-            try:
-                es.create(index=self.products[orderbook[0]]['orderbook'], id=utils.generate_nonce(),
-                          doc_type='orderbook', body=orderbook[1])
-            except Exception as e:
-                logging.warning('{}:{}'.format(str(e), orderbook))
-                raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
+            logging.info('All parameters retreived from {}'.format(self.exchange.id))

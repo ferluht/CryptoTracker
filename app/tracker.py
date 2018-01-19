@@ -3,6 +3,7 @@
 from elasticsearch import Elasticsearch, helpers
 from exchange_harness import ExchangeHarness
 import logging
+import functools
 # import schedule
 import asyncio
 import settings
@@ -10,6 +11,7 @@ import utils
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from time import sleep
 
 def main():
@@ -21,9 +23,8 @@ def main():
 
 
     logging.info('Application Started.')
-    #supported_exchanges = [BitFinex_Market(), BitMex_Market(), BitTrex_Market(), GDAX_Market(), Gemini_Market(), Kraken_Market(), OKCoin_Market(), Poloniex_Market()]
-    tmp = ['bittrex', 'kraken']
-    exchanges = [ExchangeHarness(x) for x in tmp]
+    RESTful_exchanges = ['bittrex', 'kraken', 'poloniex', 'kucoin', 'cryptopia']
+    exchanges = [ExchangeHarness(x) for x in RESTful_exchanges]
 
     # print active exchanges and create indexes in kibana based on products listed in each market
     for exchange in exchanges:
@@ -34,27 +35,17 @@ def main():
 
     logging.warning('Initiating Market Tracking.')
 
-    loop = asyncio.get_event_loop()
     #Record Ticks
     while True:
+        loop = asyncio.get_event_loop()
         try:
-            exs = asyncio.gather(*[ex.record_data(es) for ex in exchanges])
-            loop.run_until_complete(exs)
-            logging.info("All exchanges record cycle")
+            es = ''
+            for exchange in exchanges:
+                asyncio.ensure_future(exchange.record_data(es))
+            loop.run_forever()
         except Exception as e:
             logging.warning(e)
-        #    sleep(settings.RETRY_RATE)
-        # with ThreadPoolExecutor(max_workers=20) as executor:
-        #     try:
-        #         sleep(1)
-        #         es = ''
-        #         executor.map(lambda ex: ex.record_data_wrapper(es), exchanges)
-        #         # exchanges[0].record_data_wrapper(es)
-        #         logging.info("added another ticker record")
-        #     except Exception as e:
-        #         logging.warning(e)
-        #         sleep(settings.RETRY_RATE)
-    loop.close()
+        loop.close()
 
 
 
