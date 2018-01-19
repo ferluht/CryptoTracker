@@ -54,7 +54,7 @@ class ExchangeHarness(object):
 
         logging.info('Indices for {}: {}'.format(self.exchange.id, self.products))
 
-        self.time_between_requests = 0.05
+        self.time_between_requests = 0.1
         # self.markets = self.exchange.load_markets()
 
     def clean_ticker(self,data):
@@ -90,7 +90,7 @@ class ExchangeHarness(object):
             return
         logging.debug('Got ticker {} from {}'.format(self.symbols[symbol], self.exchange.id))
         clean = self.clean_ticker(ticker)
-        await self.on_ticker_received(clean, es)
+        await self.on_ticker_received(symbol, clean, es)
 
     async def get_orderbook(self, symbol, es):
         try:
@@ -102,22 +102,22 @@ class ExchangeHarness(object):
         logging.debug('Got orderbook {} from {}'.format(self.symbols[symbol], self.exchange.id))
         now = datetime.utcnow()
         orderbook['tracker_time'] = now
-        await self.on_orderbook_received(orderbook, es)
+        await self.on_orderbook_received(symbol, orderbook, es)
 
-    async def on_ticker_received(self, ticker, es):
+    async def on_ticker_received(self, symbol, ticker, es):
         try:
             logging.debug(ticker)
-            es.create(index=self.products[ticker[0]]['ticker'], id=utils.generate_nonce(),
-                      doc_type='ticker', body=ticker[1])
+            es.create(index=self.products[symbol]['ticker'], id=utils.generate_nonce(),
+                      doc_type='ticker', body=ticker)
         except Exception as e:
             logging.warning('{}:{}'.format(str(e), ticker))
             # raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
 
-    async def on_orderbook_received(self, orderbook, es):
+    async def on_orderbook_received(self, symbol, orderbook, es):
         try:
             logging.debug(orderbook)
-            es.create(index=self.products[orderbook[0]]['orderbook'], id=utils.generate_nonce(),
-                      doc_type='orderbook', body=orderbook[1])
+            es.create(index=self.products[symbol]['orderbook'], id=utils.generate_nonce(),
+                      doc_type='orderbook', body=orderbook)
         except Exception as e:
             logging.warning('{}:{}'.format(str(e), orderbook))
             # raise ValueError("Misformed Body for Elastic Search on " + self.exchange.id)
