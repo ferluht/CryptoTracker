@@ -21,7 +21,6 @@ def main():
     logging.info('Market Refresh Rate: ' + str(settings.MARKET_REFRESH_RATE) + ' seconds.')
     logging.info('Initial Sleep: ' + str(5) + ' seconds.')
 
-
     logging.info('Application Started.')
     RESTful_exchanges = ['bittrex', 'kraken', 'poloniex', 'kucoin', 'cryptopia']
     exchanges = [ExchangeHarness(x) for x in RESTful_exchanges]
@@ -39,7 +38,6 @@ def main():
     while True:
         loop = asyncio.get_event_loop()
         try:
-            es = ''
             for exchange in exchanges:
                 asyncio.ensure_future(exchange.record_data(es))
             loop.run_forever()
